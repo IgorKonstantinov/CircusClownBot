@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     API_HASH: str
     API_INITDATA: str
 
-    TAP_RANDOM: list[int] = [20, 30]
+    TAP_RANDOM: list[int] = [30, 50]
 
     SLEEP_RANDOM: list[int] = [3, 5]
     SLEEP_BETWEEN_MINING: list[int] = [300, 900]

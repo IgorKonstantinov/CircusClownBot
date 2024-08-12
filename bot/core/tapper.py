@@ -8,6 +8,8 @@ from urllib.parse import unquote, quote
 from time import time
 from datetime import datetime, timezone
 
+import requests
+
 import aiohttp
 import json
 from aiocfscrape import CloudflareScraper
@@ -30,6 +32,7 @@ class Tapper:
         self.tg_client = tg_client
         self.user_id = 0
         self.username = None
+        self.headers = headers
 
     async def get_secret(self, userid):
         key_hash = str("adwawdasfajfklasjglrejnoierjboivrevioreboidwa").encode('utf-8')
@@ -128,14 +131,13 @@ class Tapper:
 
     async def tap(self, http_client: aiohttp.ClientSession, taps: int = 0):
         try:
-            tap_url = f"https://api.circus-clown.com/api/user/click?amount={taps}"
-            print(tap_url)
-            pprint.pprint(http_client.headers)
+            tap_url = "https://api.circus-clown.com/api/user/click"
+            params = {'amount': taps}
 
-            response = await http_client.post(url=tap_url)
+            response = requests.post(url=tap_url, params=params, headers=self.headers)
             response.raise_for_status()
 
-            response_json = await response.json()
+            response_json = response.json()
             return response_json
 
         except Exception as error:
@@ -203,13 +205,8 @@ class Tapper:
 
 
     async def run(self, proxy: str | None) -> None:
-        proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
-        http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
-        #http_client_options = CloudflareScraper(headers=headers_options, connector=proxy_conn)
+        http_client = aiohttp.ClientSession(headers=headers)
         referrals_created_time = 0
-
-        if proxy:
-            await self.check_proxy(http_client=http_client, proxy=proxy)
 
         tg_web_data = await self.get_tg_web_data(proxy=proxy)
 
@@ -223,7 +220,7 @@ class Tapper:
                     continue
 
                 if http_client.closed:
-                    http_client = CloudflareScraper(headers=headers)
+                    http_client = aiohttp.ClientSession(headers=headers)
 
                 tg_web_data = await self.get_tg_web_data(proxy=proxy)
 
@@ -233,6 +230,7 @@ class Tapper:
 
                 logger.info(f"Generate new access_token: {auth_data['token']}")
                 http_client.headers["authorization"] = auth_data['token']
+                self.headers.update({'authorization': auth_data['token']})
 
                 auth_data_balance = auth_data['mtkBalance']
                 auth_data_balance_old = auth_data['mtkBalanceBeforeUpdate']
