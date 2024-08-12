@@ -147,8 +147,6 @@ class Tapper:
     async def tap_options(self, http_client: aiohttp.ClientSession, taps: int = 0):
         try:
             tap_url = f"https://api.circus-clown.com/api/user/click?amount={taps}"
-            pprint.pprint(http_client.headers)
-
             response = await http_client.options(url=tap_url)
             response.raise_for_status()
 
@@ -200,9 +198,24 @@ class Tapper:
             return response_json
 
         except Exception as error:
-            logger.error(f"{self.session_name} | Unknown error when get improvements data: {error}")
+            logger.error(f"{self.session_name} | Unknown error when get referrals data: {error}")
             await asyncio.sleep(delay=30)
 
+    async def daily(self, http_client: aiohttp.ClientSession):
+        try:
+            daily_url = "https://api.circus-clown.com/api/user/collectDaily"
+            params = {'userId': self.user_id}
+
+            #response = await http_client.post(url=daily_url, params=params)
+            response = requests.post(url=daily_url, params=params, headers=self.headers)
+            response.raise_for_status()
+
+            response_json = response.json()
+            return response_json
+
+        except Exception as error:
+            logger.error(f"{self.session_name} | Daily | Unknown error: {error}")
+            await asyncio.sleep(delay=30)
 
     async def run(self, proxy: str | None) -> None:
         http_client = aiohttp.ClientSession(headers=headers)
@@ -333,6 +346,14 @@ class Tapper:
 
                     else:
                         logger.info(f"{self.session_name} | Cannot [refarrals/{referrals_action}]: no referrals")
+
+
+                # daily
+                if auth_data['dailyPrizeCollectAvailable']:
+                    logger.info(f"{self.session_name} | sleep {random_sleep:,}s before bot action: <e>[daily]</e>")
+                    await asyncio.sleep(delay=random_sleep)
+                    daily_data = await self.daily(http_client=http_client)
+                    print(daily_data)
 
                 # taps
                 logger.info(f"{self.session_name} | sleep {random_sleep:,}s before bot action: <e>[tap]</e>")
