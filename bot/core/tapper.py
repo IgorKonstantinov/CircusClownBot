@@ -117,7 +117,6 @@ class Tapper:
     async def auth(self, http_client: aiohttp.ClientSession, initData: str = ''):
         try:
             auth_url = f"https://api.circus-clown.com/api/user/info?telegramId={self.user_id}&initData={initData}"
-            print(auth_url)
 
             response = await http_client.get(url=auth_url)
             response.raise_for_status()
@@ -146,8 +145,9 @@ class Tapper:
 
     async def tap_options(self, http_client: aiohttp.ClientSession, taps: int = 0):
         try:
-            tap_url = f"https://api.circus-clown.com/api/user/click?amount={taps}"
-            response = await http_client.options(url=tap_url)
+            tap_url = "https://api.circus-clown.com/api/user/click"
+            params = {'amount': taps}
+            response = await http_client.options(url=tap_url, params=params)
             response.raise_for_status()
 
             response_text = await response.text()
@@ -157,16 +157,17 @@ class Tapper:
             logger.error(f"{self.session_name} | Tap Options Error: {error}")
             await asyncio.sleep(delay=30)
 
-    async def improvements(self, http_client: aiohttp.ClientSession, action='', id: int = 0):
+    async def businesses(self, http_client: aiohttp.ClientSession, action='', id: int = 0):
         try:
             match action:
                 case 'get':
-                    improvements_url = "https://api-v1-production.pixie-game.com/api/clicker/improvements/get"
-                    response = await http_client.get(url=improvements_url)
+                    businesses_url = "https://api.circus-clown.com/api/businesses"
+                    response = await http_client.get(url=businesses_url)
                 case 'set':
-                    raw_data = {'improvement_id': id, 'timestamp': int(time())}
-                    improvements_url = "https://api-v1-production.pixie-game.com/api/v3/improvements/set"
-                    response = await http_client.post(url=improvements_url, json=raw_data)
+                    businesses_url = "https://api.circus-clown.com/api/user/upgradeBusiness"
+                    params = {'userId': {self.user_id}, 'businesId': id}
+                    print(params)
+                    response = requests.post(url=businesses_url, params=params, headers=self.headers)
                 case _:
                     raise ValueError("There is no passive_action.")
 
@@ -176,7 +177,7 @@ class Tapper:
             return response_json
 
         except Exception as error:
-            logger.error(f"{self.session_name} | Unknown error when get improvements data: {error}")
+            logger.error(f"{self.session_name} | Unknown error when get businesses data: {error}")
             await asyncio.sleep(delay=30)
 
     async def referrals(self, http_client: aiohttp.ClientSession, action=''):
@@ -239,7 +240,7 @@ class Tapper:
 
                 initData = settings.API_INITDATA
                 auth_data = await self.auth(http_client=http_client, initData=initData)
-                print(auth_data)
+                #print(auth_data)
 
                 logger.info(f"Generate new access_token: {auth_data['token']}")
                 http_client.headers["authorization"] = auth_data['token']
@@ -252,25 +253,26 @@ class Tapper:
                 auth_data_click_level = auth_data['clickLevel']
                 auth_data_click_power = auth_data['totalClickPower']
 
-
                 logger.success(f"{self.session_name} | Auth | "
                                f"Balance: <c>{auth_data_balance} (+{auth_data_balance-auth_data_balance_old} passive)</c> | "
                                f"Energy: <c>{auth_data_current_energy}</c> | "
-                               f"Click: level: <c>{auth_data_click_level}</c>, power: {auth_data_click_power}")
-                #await asyncio.sleep(delay=random_sleep)
+                               f"Click: level: <c>{auth_data_click_level}</c>, power: <c>{auth_data_click_power}</c>")
+                await asyncio.sleep(delay=random_sleep)
 
                 if settings.AUTO_UPGRADE:
 
-                    improvements_action = 'get'
-                    improvements_data = await self.improvements(http_client=http_client, action=improvements_action)
-                    if improvements_data:
-                        logger.success(f"{self.session_name} | Bot action: <red>[improvements/{improvements_action}]</red>")
+                    businesses_action = 'get'
+                    businesses_data = await self.businesses(http_client=http_client, action=businesses_action)
+                    if businesses_data:
+                        logger.success(f"{self.session_name} | Bot action: <red>[businesses/{businesses_action}]:</red> <c>{businesses_data}</c>")
                         await asyncio.sleep(delay=random_sleep)
                     else:
-                        logger.info(f"{self.session_name} | Cannot [improvements/{improvements_action}]")
+                        logger.info(f"{self.session_name} | Cannot [businesses/{businesses_action}]")
 
-                    prices_data = improvements_data['improvements']
-                    levels_data = auth_data['user']['improvements_data']
+                    exit()
+
+                    prices_data = businesses_data['businesses']
+                    levels_data = auth_data['user']['businesses_data']
                     levels_data = json.loads(levels_data)
 
                     # Создаем словарь для уровней
@@ -313,17 +315,17 @@ class Tapper:
                         logger.info(f"{self.session_name} | Sleep {random_sleep:,}s before upgrade card: <e>[{card_upgrade_id}/{card_upgrade_name}]</e> to level: <e>[{card_upgrade_level}]</e> with price: <e>[{card_upgrade_price}]</e>")
                         await asyncio.sleep(delay=random_sleep)
 
-                        improvements_action = 'set'
-                        improvements_data = await self.improvements(http_client=http_client, action=improvements_action, id=card_upgrade_id)
-                        if improvements_data:
+                        businesses_action = 'set'
+                        businesses_data = await self.businesses(http_client=http_client, action=businesses_action, id=card_upgrade_id)
+                        if businesses_data:
                             logger.success(
-                                f"{self.session_name} | Bot action: <red>[improvements/{improvements_action}]</red> : <c>{improvements_data}</c>")
+                                f"{self.session_name} | Bot action: <red>[businesses/{businesses_action}]</red> : <c>{businesses_data}</c>")
                             await asyncio.sleep(delay=random_sleep)
                         else:
-                            logger.info(f"{self.session_name} | Cannot [improvements/{improvements_action}]")
+                            logger.info(f"{self.session_name} | Cannot [businesses/{businesses_action}]")
 
                     else:
-                        logger.info(f"{self.session_name} | Cannot [improvements], balance is too small: <g>{auth_data_balance}</g>")
+                        logger.info(f"{self.session_name} | Cannot [businesses], balance is too small: <g>{auth_data_balance}</g>")
 
                 if settings.AUTO_REFERRALS and (time() - referrals_created_time >= 3600):
 
@@ -346,7 +348,6 @@ class Tapper:
 
                     else:
                         logger.info(f"{self.session_name} | Cannot [refarrals/{referrals_action}]: no referrals")
-
 
                 # daily
                 if auth_data['dailyPrizeCollectAvailable']:

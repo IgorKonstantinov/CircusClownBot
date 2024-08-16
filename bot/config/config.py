@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     TAP_RANDOM: list[int] = [30, 50]
 
     SLEEP_RANDOM: list[int] = [3, 5]
-    SLEEP_BETWEEN_MINING: list[int] = [300, 900]
+    SLEEP_BETWEEN_MINING: list[int] = [300, 600]
 
     AUTO_UPGRADE: bool = False
     MAX_LEVEL: int = 20
