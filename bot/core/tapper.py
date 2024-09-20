@@ -225,6 +225,7 @@ class Tapper:
         tg_web_data = await self.get_tg_web_data(proxy=proxy)
 
         while True:
+            error_sleep = random.randint(*settings.SLEEP_BETWEEN_MINING)
             try:
                 #Randomize variables
                 random_sleep = random.randint(*settings.SLEEP_RANDOM)
@@ -240,7 +241,6 @@ class Tapper:
 
                 initData = settings.API_INITDATA
                 auth_data = await self.auth(http_client=http_client, initData=initData)
-                #print(auth_data)
 
                 logger.info(f"Generate new access_token: {auth_data['token']}")
                 http_client.headers["authorization"] = auth_data['token']
@@ -354,7 +354,9 @@ class Tapper:
                     logger.info(f"{self.session_name} | sleep {random_sleep:,}s before bot action: <e>[daily]</e>")
                     await asyncio.sleep(delay=random_sleep)
                     daily_data = await self.daily(http_client=http_client)
-                    print(daily_data)
+                    logger.success(
+                        f"{self.session_name} | <red>[action/daily]</red> "
+                        f"data: <c>{daily_data}</c>")
 
                 # taps
                 logger.info(f"{self.session_name} | sleep {random_sleep:,}s before bot action: <e>[tap]</e>")
@@ -366,10 +368,6 @@ class Tapper:
                     if taps*auth_data_click_power >= auth_data_current_energy:
                         taps = abs(auth_data_current_energy // auth_data_click_power -1)
 
-                    #taps_data = await self.tap_options(http_client=http_client_options, taps=taps)
-                    #print(taps_data)
-                    #await asyncio.sleep(delay=1)
-
                     taps_data = await self.tap(http_client=http_client, taps=taps)
                     if taps_data:
                         auth_data_current_energy = auth_data_current_energy - taps * auth_data_click_power
@@ -379,16 +377,17 @@ class Tapper:
                         logger.error(f"{self.session_name} | Bot action:[tap] error")
 
                 logger.info(f"{self.session_name} | Sleep {long_sleep:,}s")
-                await asyncio.sleep(delay=long_sleep)
                 await http_client.close()
+                await asyncio.sleep(delay=long_sleep)
 
             except InvalidSession as error:
                 raise error
 
             except Exception as error:
-                logger.error(f"{self.session_name} | Unknown error: {error}")
-                await asyncio.sleep(delay=30)
+                logger.error(f"{self.session_name} | Unknown error: {error} | sleep {error_sleep}")
                 await http_client.close()
+                await asyncio.sleep(delay=error_sleep)
+
 
 async def run_tapper(tg_client: Client, proxy: str | None):
     try:
