@@ -1,7 +1,5 @@
 import heapq
 import asyncio
-import hmac
-import hashlib
 import pprint
 import random
 from urllib.parse import unquote, quote
@@ -30,16 +28,10 @@ class Tapper:
     def __init__(self, tg_client: Client):
         self.session_name = tg_client.name
         self.tg_client = tg_client
+        self.peer_name = 'circus_clicker_bot'
+        self.peer_url = 'https://circus-clown.com/'
         self.user_id = 0
-        self.username = None
         self.headers = headers
-
-    async def get_secret(self, userid):
-        key_hash = str("adwawdasfajfklasjglrejnoierjboivrevioreboidwa").encode('utf-8')
-        message = str(userid).encode('utf-8')
-        hmac_obj = hmac.new(key_hash, message, hashlib.sha256)
-        secret = str(hmac_obj.hexdigest())
-        return secret
 
     async def get_tg_web_data(self, proxy: str | None) -> str:
         if proxy:
@@ -57,10 +49,7 @@ class Tapper:
         self.tg_client.proxy = proxy_dict
 
         try:
-            with_tg = True
-
             if not self.tg_client.is_connected:
-                with_tg = False
                 try:
                     await self.tg_client.connect()
                 except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
@@ -68,22 +57,22 @@ class Tapper:
 
             while True:
                 try:
-                    peer = await self.tg_client.resolve_peer('circus_clicker_bot')
+                    peer = await self.tg_client.resolve_peer(self.peer_name)
                     break
                 except FloodWait as fl:
                     fls = fl.value
 
                     logger.warning(f"{self.session_name} | FloodWait {fl}")
-                    logger.info(f"{self.session_name} | Sleep {fls}s")
-
-                    await asyncio.sleep(fls + 3)
+                    logger.info(f"{self.session_name} | FloodWait Sleep {fls}s")
+                    fls += 5
+                    await asyncio.sleep(fls)
 
             web_view = await self.tg_client.invoke(RequestWebView(
                 peer=peer,
                 bot=peer,
                 platform='android',
                 from_bot_menu=False,
-                url='https://circus-clown.com/'
+                url=self.peer_url
             ))
 
             auth_url = web_view.url
@@ -93,7 +82,7 @@ class Tapper:
 
             self.user_id = (await self.tg_client.get_me()).id
 
-            if with_tg is False:
+            if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
 
             return tg_web_data
@@ -102,7 +91,7 @@ class Tapper:
             raise error
 
         except Exception as error:
-            logger.error(f"{self.session_name} | Unknown error during Authorization: {error}")
+            logger.error(f"{self.session_name} | Unknown error during Telegram Authorization: {error}")
             await asyncio.sleep(delay=30)
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
@@ -219,11 +208,7 @@ class Tapper:
             await asyncio.sleep(delay=30)
 
     async def run(self, proxy: str | None) -> None:
-        http_client = aiohttp.ClientSession(headers=headers)
         referrals_created_time = 0
-
-        tg_web_data = await self.get_tg_web_data(proxy=proxy)
-
         while True:
             error_sleep = random.randint(*settings.SLEEP_BETWEEN_MINING)
             try:
@@ -231,13 +216,8 @@ class Tapper:
                 random_sleep = random.randint(*settings.SLEEP_RANDOM)
                 long_sleep = random.randint(*settings.SLEEP_BETWEEN_MINING)
 
-                if not tg_web_data:
-                    continue
-
-                if http_client.closed:
-                    http_client = aiohttp.ClientSession(headers=headers)
-
                 tg_web_data = await self.get_tg_web_data(proxy=proxy)
+                http_client = aiohttp.ClientSession(headers=headers)
 
                 initData = settings.API_INITDATA
                 auth_data = await self.auth(http_client=http_client, initData=initData)
